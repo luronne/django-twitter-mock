@@ -8,16 +8,34 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('username', 'email')
 
 
+class UserSerializerForTweet(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username')
+
+
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField()
 
     def validate(self, data):
-        # user existence
-        if not User.objects.filter(username=data['username'].lower()).exists():
+        # missing username
+        if not data.get('username'):
             raise exceptions.ValidationError({
-                'username': "Username does not exist."
+                'username': "This field may not be blank."
             })
+        # missing password
+        if not data.get('password'):
+            raise exceptions.ValidationError({
+                'username': "This field may not be blank."
+            })
+        # non-exist username
+        username = data['username'].lower()
+        if not User.objects.filter(username=username).exists():
+            raise exceptions.ValidationError({
+                'username': "User does not exist."
+            })
+        data['username'] = username
         return data
 
 
