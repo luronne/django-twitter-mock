@@ -1,9 +1,10 @@
-from rest_framework import viewsets
-from rest_framework.response import Response
+from newsfeeds.services import NewsFeedService
+from rest_framework import viewsets, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 from tweets.api.serializers import TweetSerializer, TweetSerializerForCreate
 from tweets.models import Tweet
-from newsfeeds.services import NewsFeedService
+
 
 class TweetViewSet(viewsets.GenericViewSet):
     serializer_class = TweetSerializerForCreate
@@ -16,7 +17,10 @@ class TweetViewSet(viewsets.GenericViewSet):
     def list(self, request):
         # user_id exits
         if 'user_id' not in request.query_params:
-            return Response('missing user_id', status=400)
+            return Response(
+                'missing user_id',
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # get tweets
         user_id = request.query_params['user_id']
@@ -35,9 +39,12 @@ class TweetViewSet(viewsets.GenericViewSet):
                 'success': False,
                 'message': "Please check input.",
                 'errors': serializer.errors,
-            }, status=400)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         # save() will call create method in TweetSerializerForCreate
         tweet = serializer.save()
         NewsFeedService.fanout_to_followers(tweet)
-        return Response(TweetSerializer(tweet).data, status=201)
+        return Response(
+            TweetSerializer(tweet).data,
+            status=status.HTTP_201_CREATED,
+        )
