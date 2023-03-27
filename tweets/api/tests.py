@@ -1,9 +1,11 @@
-from testing.testcases import TestCase
+from rest_framework import status
 from rest_framework.test import APIClient
+from testing.testcases import TestCase
 from tweets.models import Tweet
 
 TWEET_LIST_API = '/api/tweets/'
 TWEET_CREATE_API = '/api/tweets/'
+TWEET_RETRIEVE_API = '/api/tweets/{}/'
 
 
 class TweetApiTests(TestCase):
@@ -29,13 +31,13 @@ class TweetApiTests(TestCase):
     def test_list_api(self):
         # user_id must include
         response = self.anonymous_client.get(TWEET_CREATE_API)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # normal request
         response = self.anonymous_client.get(TWEET_LIST_API, {
             'user_id': self.user1.id,
         })
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         # length of tweets
         self.assertEqual(len(response.data['tweets']), 3)
         response = self.anonymous_client.get(TWEET_LIST_API, {
@@ -52,21 +54,41 @@ class TweetApiTests(TestCase):
         self.assertEqual(response.status_code, 403)
         # must with content
         response = self.user1_client.post(TWEET_CREATE_API)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         # too short content
         response = self.user1_client.post(TWEET_CREATE_API, {'content': '1'})
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         # too long content
         response = self.user1_client.post(TWEET_CREATE_API, {
             'content': '0' * 141
         })
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # normal post
         tweets_count = Tweet.objects.count()
         response = self.user1_client.post(TWEET_CREATE_API, {
             'content': 'Hello World test tweet!'
         })
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['user']['id'], self.user1.id)
         self.assertEqual(Tweet.objects.count(), tweets_count + 1)
+
+    def test_retrieve(self):
+        # invalid tweet_id
+        url = TWEET_RETRIEVE_API.format(-1)
+        response = self.anonymous_client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        # no comments at initial
+        tweet = self.create_tweet(self.user1)
+        url = TWEET_RETRIEVE_API.format(tweet.id)
+        response = self.anonymous_client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['comments']), 0)
+
+        #
+        self.create_comment(self.user1, tweet, 'comment 1')
+        self.create_comment(self.user2, tweet, 'comment 2')
+        self.create_comment(self.user2, self.create_tweet(self.user1), 'comment 3')
+        response = self.anonymous_client.get(url)
+        self.assertEqual(len(response.data['comments']), 2)
