@@ -30,3 +30,9 @@ class TestCase(DjangoTestCase):
         if content is None:
             content = 'default comment content'
         return Comment.objects.create(user=user, tweet=tweet, content=content)
+
+    def create_user_and_client(self, *args, **kwargs):
+        user = self.create_user(*args, **kwargs)
+        client = APIClient()
+        client.force_authenticate(user)
+        return user, client
