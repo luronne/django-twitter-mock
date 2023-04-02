@@ -32,17 +32,21 @@ class NewsFeedApiTests(TestCase):
         # logged in user
         response = self.anonymous_client.get(NEWSFEEDS_URL)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
         # POST not allowed
         response = self.user1_client.post(NEWSFEEDS_URL)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
         # No newsfeeds at beginning
         response = self.user1_client.get(NEWSFEEDS_URL)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['newsfeeds']), 0)
+
         # post a tweet, self view
         self.user1_client.post(POST_TWEET_URL, {'content': 'Test world!'})
         response = self.user1_client.get(NEWSFEEDS_URL)
         self.assertEqual(len(response.data['newsfeeds']), 1)
+
         # followers view
         self.user1_client.post(FOLLOW_URL.format(self.user2.id))
         response = self.user2_client.post(POST_TWEET_URL, {
