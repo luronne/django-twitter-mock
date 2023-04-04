@@ -211,5 +211,5 @@ class LikeApiTests(TestCase):
 
         # test tweets detail API ordering
         response = self.user2_client.get(TWEET_DETAIL_API.format(tweet.id))
-        self.assertEqual(response.data['likes'][0]['user'], self.user1.id)
-        self.assertEqual(response.data['likes'][1]['user'], self.user2.id)
+        self.assertEqual(response.data['likes'][0]['user']['id'], self.user1.id)
+        self.assertEqual(response.data['likes'][1]['user']['id'], self.user2.id)
