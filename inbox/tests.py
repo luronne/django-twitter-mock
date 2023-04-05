@@ -1,6 +1,6 @@
-from testing.testcases import TestCase
 from inbox.services import NotificationService
 from notifications.models import Notification
+from testing.testcases import TestCase
 
 
 class NotificationServiceTests(TestCase):
