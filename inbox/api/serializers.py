@@ -35,3 +35,16 @@ class NotificationSerializer(serializers.ModelSerializer):
         if obj.target:
             return ContentType.objects.get_for_model(obj.target).name
         return None
+
+
+class NotificationSerializerForUpdate(serializers.ModelSerializer):
+    unread = serializers.BooleanField()
+
+    class Meta:
+        model = Notification
+        fields = ('unread',)
+
+    def update(self, instance, validated_data):
+        instance.unread = validated_data['unread']
+        instance.save()
+        return instance
