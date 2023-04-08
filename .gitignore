@@ -1,8 +1,10 @@
 *.box
 .vagrant
 .idea
+.pycharm_helpers
 Vagrantfile
 mysql-apt-config_0.8.15-1_all
+media/
 
 # Byte-compiled / optimized / DLL files
 __pycache__
