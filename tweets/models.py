@@ -52,7 +52,7 @@ class TweetPhoto(models.Model):
 
     # soft-delete tag
     has_deleted = models.BooleanField(default=False)
-    deleted_at = models.DateTimeField(null=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -65,4 +65,3 @@ class TweetPhoto(models.Model):
 
         def __str__(self):
             return f'{self.tweet_id}: {self.file}'
-

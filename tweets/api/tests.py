@@ -1,7 +1,9 @@
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 from rest_framework.test import APIClient
 from testing.testcases import TestCase
-from tweets.models import Tweet
+from tweets.constants import TWEET_PHOTOS_UPLOAD_LIMIT
+from tweets.models import Tweet, TweetPhoto
 
 TWEET_LIST_API = '/api/tweets/'
 TWEET_CREATE_API = '/api/tweets/'
@@ -73,6 +75,82 @@ class TweetApiTests(TestCase):
         self.assertEqual(response.data['user']['id'], self.user1.id)
         self.assertEqual(Tweet.objects.count(), tweets_count + 1)
 
+    def test_create_with_files(self):
+        # upload with no args of files, compatible with old api
+        response = self.user1_client.post(TWEET_CREATE_API, {
+            'content': 'selfie!',
+        })
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(TweetPhoto.objects.count(), 0)
+
+        # upload none files
+        response = self.user1_client.post(TWEET_CREATE_API, {
+            'content': 'selfie!',
+            'files': [],
+        })
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(TweetPhoto.objects.count(), 0)
+
+        # upload one file
+        file = SimpleUploadedFile(
+            name='selfie.jpg',
+            content=str.encode('a fake image'),
+            content_type='image/jpeg',
+        )
+        response = self.user1_client.post(TWEET_CREATE_API, {
+            'content': 'a selfie',
+            'files': [file],
+        })
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(TweetPhoto.objects.count(), 1)
+
+        # upload multiple file
+        file1 = SimpleUploadedFile(
+            name='selfie1.jpg',
+            content=str.encode('image 1'),
+            content_type='image/jpeg',
+        )
+        file2 = SimpleUploadedFile(
+            name='selfie2.jpg',
+            content=str.encode('image 2'),
+            content_type='image/jpeg',
+        )
+        response = self.user1_client.post(TWEET_CREATE_API, {
+            'content': 'selfie!',
+            'files': [file1, file2],
+        })
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(TweetPhoto.objects.count(), 3)
+
+        # retrieve with photo urls
+        retrieve_url = TWEET_RETRIEVE_API.format(response.data['id'])
+        response = self.user1_client.get(retrieve_url)
+        self.assertEqual(len(response.data['photo_urls']), 2)
+        self.assertEqual('selfie1' in response.data['photo_urls'][0], True)
+        self.assertEqual('selfie2' in response.data['photo_urls'][1], True)
+
+        # list with photo urls
+        response = self.user1_client.get(TWEET_LIST_API, {
+            'user_id': self.user1.id,
+        })
+        self.assertEqual(len(response.data['tweets'][0]['photo_urls']), 2)
+
+        # upload files more than limit
+        files = [
+            SimpleUploadedFile(
+                name=f'selfie{i}.jpg',
+                content=str.encode(f'image {i}'),
+                content_type='image/jpeg',
+            )
+            for i in range(TWEET_PHOTOS_UPLOAD_LIMIT + 1)
+        ]
+        response = self.user1_client.post(TWEET_CREATE_API, {
+            'content': 'selfie!',
+            'files': files,
+        })
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(TweetPhoto.objects.count(), 3)
+
     def test_retrieve(self):
         # invalid tweet_id
         url = TWEET_RETRIEVE_API.format(-1)
@@ -92,3 +170,8 @@ class TweetApiTests(TestCase):
         self.create_comment(self.user2, self.create_tweet(self.user1), 'comment 3')
         response = self.anonymous_client.get(url)
         self.assertEqual(len(response.data['comments']), 2)
+
+        # tweet will include the nickname and avatar_url
+        profile = self.user1.profile
+        self.assertEqual(response.data['user']['nickname'], profile.nickname)
+        self.assertEqual(response.data['user']['avatar_url'], None)
