@@ -14,6 +14,7 @@ USER_PROFILE_DETAIL = '/api/profiles/{}/'
 class AccountApiTests(TestCase):
 
     def setUp(self):
+        self.clear_cache()
         # execute every test function
         self.client = APIClient()
         self.user = self.create_user(

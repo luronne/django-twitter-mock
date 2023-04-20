@@ -1,5 +1,4 @@
 from rest_framework import status
-
 from testing.testcases import TestCase
 
 LIKE_BASE_URL = '/api/likes/'
@@ -13,6 +12,7 @@ NEWSFEED_LIST_API = '/api/newsfeeds/'
 class LikeApiTests(TestCase):
 
     def setUp(self):
+        self.clear_cache()
         self.user1, self.user1_client = self.create_user_and_client('user1')
         self.user2, self.user2_client = self.create_user_and_client('user2')
 
