@@ -14,6 +14,7 @@ TWEET_RETRIEVE_API = '/api/tweets/{}/'
 class TweetApiTests(TestCase):
 
     def setUp(self):
+        self.clear_cache()
         # authenticated
         self.user1 = self.create_user('testUser1', 'user1@example.com')
         self.tweets1 = [
