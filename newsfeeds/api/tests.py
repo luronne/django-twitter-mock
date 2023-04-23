@@ -139,7 +139,6 @@ class NewsFeedApiTests(TestCase):
         self.user1.save()
         profile.nickname = 'user_dos'
         profile.save()
-        print(profile)
 
         response = self.user2_client.get(NEWSFEEDS_URL)
         results = response.data['results']
