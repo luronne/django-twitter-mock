@@ -1,4 +1,5 @@
 from dateutil import parser
+from django.conf import settings
 from rest_framework.pagination import BasePagination
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
@@ -23,7 +24,7 @@ class FriendshipPagination(PageNumberPagination):
 
 
 class EndlessPagination(BasePagination):
-    page_size = 20
+    page_size = 20 if not settings.TESTING else 10
     has_next_page = False
 
     def __int__(self):
@@ -33,6 +34,9 @@ class EndlessPagination(BasePagination):
         pass
 
     def paginate_ordered_list(self, reverse_ordered_list, request):
+        """
+        Pagination for list
+        """
         if 'created_at__gt' in request.query_params:
             created_at__gt = parser.isoparse(request.query_params['created_at__gt'])
             objects = []
@@ -56,10 +60,9 @@ class EndlessPagination(BasePagination):
         return reverse_ordered_list[index: index + self.page_size]
 
     def paginate_queryset(self, queryset, request, view=None):
-        # check the type of the queryset
-        if type(queryset) == list:
-            return self.paginate_ordered_list(queryset, request)
-
+        """
+        Pagination for queryset
+        """
         # refresh the page will load all latest posts
         if 'created_at__gt' in request.query_params:
             created_at__gt = request.query_params['created_at__gt']
@@ -76,6 +79,26 @@ class EndlessPagination(BasePagination):
         queryset = queryset.order_by('-created_at')[:self.page_size + 1]
         self.has_next_page = len(queryset) > self.page_size
         return queryset[:self.page_size]
+
+    def paginate_cached_list(self, cached_list, request):
+        """
+        Pagination for cached list
+        """
+        paginated_list = self.paginate_ordered_list(cached_list, request)
+        # refresh the page, paginated_list contains the latest data
+        # directly return
+        if 'created_at__gt' in request.query_params:
+            return paginated_list
+        # has_next_page is true, cached_list still contains data
+        # also directly return
+        if self.has_next_page:
+            return paginated_list
+        # length of cached_list smaller than cache limit
+        # cached_list contains all data
+        if len(cached_list) < settings.REDIS_LIST_LENGTH_LIMIT:
+            return paginated_list
+        # database exists data not in cache, retrieve data from db
+        return None
 
     def get_paginated_response(self, data):
         return Response({
