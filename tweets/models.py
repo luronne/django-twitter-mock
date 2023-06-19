@@ -20,6 +20,10 @@ class Tweet(models.Model):
     content = models.CharField(max_length=225)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # must set null=True to avoid loop of default=0
+    likes_count = models.IntegerField(default=0, null=True)
+    comments_count = models.IntegerField(default=0, null=True)
+
     class Meta:
         index_together = (('user', 'created_at'),)
         ordering = ('user', '-created_at')
