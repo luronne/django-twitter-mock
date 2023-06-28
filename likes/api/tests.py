@@ -213,3 +213,58 @@ class LikeApiTests(TestCase):
         response = self.user2_client.get(TWEET_DETAIL_API.format(tweet.id))
         self.assertEqual(response.data['likes'][0]['user']['id'], self.user1.id)
         self.assertEqual(response.data['likes'][1]['user']['id'], self.user2.id)
+
+    def test_likes_count(self):
+        tweet = self.create_tweet(self.user1)
+        data = {'content_type': 'tweet', 'object_id': tweet.id}
+        self.user1_client.post(LIKE_BASE_URL, data)
+
+        tweet_url = TWEET_DETAIL_API.format(tweet.id)
+        response = self.user1_client.get(tweet_url)
+        self.assertEqual(response.data['likes_count'], 1)
+        tweet.refresh_from_db()
+        self.assertEqual(tweet.likes_count, 1)
+
+        # like cancel
+        self.user1_client.post(LIKE_CANCEL_URL, data)
+        tweet.refresh_from_db()
+        self.assertEqual(tweet.likes_count, 0)
+        response = self.user1_client.get(tweet_url)
+        self.assertEqual(response.data['likes_count'], 0)
+
+    def test_like_count_with_cache(self):
+        tweet = self.create_tweet(self.user1)
+        self.create_newsfeed(self.user1, tweet)
+        self.create_newsfeed(self.user2, tweet)
+
+        data = {'content_type': 'tweet', 'object_id': tweet.id}
+        tweet_url = TWEET_DETAIL_API.format(tweet.id)
+        for i in range(3):
+            _, client = self.create_user_and_client('test_user{}'.format(i))
+            client.post(LIKE_BASE_URL, data)
+            response = client.get(tweet_url)
+            self.assertEqual(response.data['likes_count'], i + 1)
+            tweet.refresh_from_db()
+            self.assertEqual(tweet.likes_count, i + 1)
+
+        self.user2_client.post(LIKE_BASE_URL, data)
+        response = self.user2_client.get(tweet_url)
+        self.assertEqual(response.data['likes_count'], 4)
+        tweet.refresh_from_db()
+        self.assertEqual(tweet.likes_count, 4)
+
+        # newsfeed api
+        response = self.user1_client.get(NEWSFEED_LIST_API)
+        print(response.data)
+        self.assertEqual(response.data['results'][0]['tweet']['likes_count'], 4)
+        response = self.user2_client.get(NEWSFEED_LIST_API)
+        self.assertEqual(response.data['results'][0]['tweet']['likes_count'], 4)
+
+        # cancel like will update likes_count
+        self.user2_client.post(LIKE_CANCEL_URL, data)
+        tweet.refresh_from_db()
+        self.assertEqual(tweet.likes_count, 3)
+        self.assertEqual(response.data['likes_count'], 3)
+        self.assertEqual(response.data['results'][0]['tweet']['likes_count'], 3)
+        response = self.user2_client.get(NEWSFEED_LIST_API)
+        self.assertEqual(response.data['results'][0]['tweet']['likes_count'], 3)
