@@ -166,3 +166,41 @@ class CommentApiTests(TestCase):
         response = self.user2_client.get(NEWSFEED_LIST_API)  # the same user
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['results'][0]['tweet']['comments_count'], 2)
+
+    def test_comments_count_with_cache(self):
+        tweet_url = TWEET_DETAIL_API.format(self.tweet.id)
+        response = self.user1_client.get(tweet_url)
+        self.assertEqual(self.tweet.comments_count, 0)
+        self.assertEqual(response.data['comments_count'], 0)
+
+        data = {'tweet_id': self.tweet.id, 'content': 'test comment'}
+        for i in range(2):
+            _, client = self.create_user_and_client('test_user{}'.format(i))
+            client.post(COMMENT_URL, data)
+            response = client.get(tweet_url)
+            self.assertEqual(response.data['comments_count'], i + 1)
+            self.tweet.refresh_from_db()
+            self.assertEqual(self.tweet.comments_count, i + 1)
+
+        comment_data = self.user2_client.post(COMMENT_URL, data).data
+        response = self.user2_client.get(tweet_url)
+        self.assertEqual(response.data['comments_count'], 3)
+        self.tweet.refresh_from_db()
+        self.assertEqual(self.tweet.comments_count, 3)
+
+        # comment update will not update comments_count
+        comment_url = '{}{}/'.format(COMMENT_URL, comment_data['id'])
+        response = self.user2_client.put(comment_url, {'content': 'updated comment'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response = self.user2_client.get(tweet_url)
+        self.assertEqual(response.data['comments_count'], 3)
+        self.tweet.refresh_from_db()
+        self.assertEqual(self.tweet.comments_count, 3)
+
+        # comment delete will update comments_count
+        response = self.user2_client.delete(comment_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response = self.user2_client.get(tweet_url)
+        self.assertEqual(response.data['comments_count'], 2)
+        self.tweet.refresh_from_db()
+        self.assertEqual(self.tweet.comments_count, 2)
