@@ -255,7 +255,6 @@ class LikeApiTests(TestCase):
 
         # newsfeed api
         response = self.user1_client.get(NEWSFEED_LIST_API)
-        print(response.data)
         self.assertEqual(response.data['results'][0]['tweet']['likes_count'], 4)
         response = self.user2_client.get(NEWSFEED_LIST_API)
         self.assertEqual(response.data['results'][0]['tweet']['likes_count'], 4)
@@ -264,7 +263,9 @@ class LikeApiTests(TestCase):
         self.user2_client.post(LIKE_CANCEL_URL, data)
         tweet.refresh_from_db()
         self.assertEqual(tweet.likes_count, 3)
+        response = self.user2_client.get(tweet_url)
         self.assertEqual(response.data['likes_count'], 3)
+        response = self.user1_client.get(NEWSFEED_LIST_API)
         self.assertEqual(response.data['results'][0]['tweet']['likes_count'], 3)
         response = self.user2_client.get(NEWSFEED_LIST_API)
         self.assertEqual(response.data['results'][0]['tweet']['likes_count'], 3)
