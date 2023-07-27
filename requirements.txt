@@ -69,7 +69,7 @@ sqlparse==0.4.1
 ssh-import-id==5.7
 swapper==1.1.2.post1
 systemd-python==234
-Twisted==17.9.0
+Twisted==22.10.0
 typing-extensions==3.7.4.3
 ufw==0.36
 urllib3==1.26.4
